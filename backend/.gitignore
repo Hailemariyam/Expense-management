@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+coverage/
+
+# Uploaded receipts (local disk storage for this milestone)
+uploads/*
+!uploads/.gitkeep
