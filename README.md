@@ -59,7 +59,8 @@ Expense_Management/
 │   │   └── server.ts          # bootstrap + graceful shutdown
 │   ├── tests/                 # vitest + supertest — auth, tenancy, RBAC, workflow
 │   ├── .env.example           # copy to .env
-│   └── API.md                 # full endpoint reference
+│   ├── API.md                 # prose endpoint reference
+│   └── src/docs/              # OpenAPI 3.1 spec (zod-derived) + Swagger UI at /api/docs
 └── frontend/                  # (next milestone)
 ```
 
@@ -250,7 +251,17 @@ unaffected. This is documented here per the SOW.
 
 ## API reference
 
-Full endpoint documentation with request/response shapes: **[backend/API.md](backend/API.md)**.
+**Interactive (Swagger UI):** with the backend running, open
+**http://localhost:4000/api/docs** — try any endpoint from the browser
+(click **Authorize** and paste an access token for the protected routes). The
+raw OpenAPI 3.1 document is at `/api/docs.json`. Both are served in
+`development` / `test` only, never in production.
+
+The spec is generated from the same zod schemas the routes validate with
+([backend/src/docs/openapi.ts](backend/src/docs/openapi.ts)), so it can't drift
+from the implementation.
+
+**Prose reference** with request/response shapes: **[backend/API.md](backend/API.md)**.
 
 Summary:
 

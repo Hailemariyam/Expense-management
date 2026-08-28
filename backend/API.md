@@ -1,5 +1,10 @@
 # API Reference — Multi-Tenant Expense Management
 
+> **Interactive docs:** run the backend and open **http://localhost:4000/api/docs**
+> (Swagger UI) or fetch **`/api/docs.json`** (OpenAPI 3.1). That spec is generated
+> from the zod validators in `src/docs/openapi.ts` and is the source of truth for
+> request/response schemas; this file is the readable companion.
+
 Base URL: `http://localhost:4000/api`
 
 All responses use a consistent envelope:
