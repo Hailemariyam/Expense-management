@@ -7,9 +7,13 @@ everyone sees analytics for their own company — never anyone else's.
 **Stack:** Next.js + TypeScript (frontend) · Node.js + Express + TypeScript (backend) ·
 PostgreSQL · Prisma · JWT (access + refresh) · RBAC · Docker Compose for local Postgres.
 
-> **Status:** Backend (Day 1) is complete and tested — REST API, data layer, RBAC,
-> multi-tenancy, JWT auth with refresh rotation, expense workflow, receipt upload, and
-> analytics endpoints. Frontend (`frontend/`) is the next milestone.
+> **Status:** Backend + frontend are both implemented for the SOW scope.
+> Backend: REST API, data layer, RBAC, multi-tenancy, JWT auth with refresh
+> rotation, expense workflow, receipt upload, analytics endpoints, OpenAPI/Swagger
+> docs, 50 passing tests. Frontend: Next.js 16 App Router app for the three roles
+> (employee / manager / admin) — auth, company onboarding, dashboard, expense CRUD
+> + receipts, submit / approve / reject, admin user management, analytics — with an
+> in-memory access token + httpOnly refresh cookie via a Next.js BFF.
 
 ---
 
@@ -61,8 +65,30 @@ Expense_Management/
 │   ├── .env.example           # copy to .env
 │   ├── API.md                 # prose endpoint reference
 │   └── src/docs/              # OpenAPI 3.1 spec (zod-derived) + Swagger UI at /api/docs
-└── frontend/                  # (next milestone)
+└── frontend/                  # Next.js 16 App Router app (see frontend/README.md)
+    ├── app/
+    │   ├── (auth)/           # login, register
+    │   ├── (app)/            # authenticated shell + one folder per route
+    │   └── bff/              # backend-for-frontend: auth handlers + [...path] proxy
+    ├── components/           # ui/ · app/ · charts/
+    └── lib/                  # api client, auth context, TanStack Query hooks
 ```
+
+### Frontend request flow
+
+```
+Browser (React, access token in memory)
+   │  fetch('/bff/...')  with Authorization: Bearer <accessToken>
+   ▼
+Next.js BFF route handlers
+   │  - /bff/auth/*  → manages the httpOnly refresh cookie (em_rt)
+   │  - /bff/[...path] → transparent proxy, injects the Bearer header
+   ▼
+Express API (/api/*)
+```
+
+The refresh token is only ever in an httpOnly cookie; the access token is only
+ever in memory; a reload silently re-authenticates via `/bff/auth/refresh`.
 
 ---
 
@@ -197,7 +223,19 @@ Health check: `curl http://localhost:4000/api/health`
 | Manager | `manager@acme.test` | `Passw0rd!` |
 | Employee | `employee@acme.test` | `Passw0rd!` |
 
-### 3. Run the tests
+### 3. Frontend
+
+```bash
+cd frontend
+cp .env.example .env.local       # BACKEND_URL defaults to http://localhost:4000
+npm install
+npm run dev                      # http://localhost:3000
+```
+
+Open http://localhost:3000 and sign in with one of the seeded accounts above.
+See [frontend/README.md](frontend/README.md) for the auth model and route map.
+
+### 4. Run the backend tests
 
 Tests use a **separate** database (`expense_mgmt_test`) so they can truncate freely.
 
@@ -208,13 +246,19 @@ npm run test:prepare        # migrate the test DB
 npm test                    # vitest — auth, multi-tenant isolation, RBAC, workflow (45 tests)
 ```
 
-### 4. Production build
+### 5. Production build
 
 ```bash
+# backend
 cd backend
 npm run build               # tsc → dist/
 npm run migrate             # prisma migrate deploy (no prompts)
 npm start                   # node dist/server.js
+
+# frontend
+cd ../frontend
+npm run build               # next build
+npm start                   # next start (default port 3000)
 ```
 
 ---
