@@ -115,6 +115,70 @@ second line of defense behind the repository scoping.
 
 ---
 
+## Registration & onboarding
+
+There is **no separate admin console that provisions tenants** — onboarding is entirely
+self-service through `POST /api/auth/register`, which has **two mutually exclusive modes**
+(the request must carry *exactly one* of `companyName` / `companyId`).
+
+### Mode A — start a new company
+
+```jsonc
+POST /api/auth/register
+{
+  "name": "Alice Admin",
+  "email": "alice@acme.com",
+  "password": "…",              // ≥ 8 chars
+  "companyName": "Acme Inc"     // ← creates the tenant
+}
+```
+
+In one DB transaction a `companies` row is inserted (Postgres generates a fresh UUID) and
+the registrant is created as that company's **`admin`**. Response `201` →
+`{ data: { user, accessToken, refreshToken } }`.
+
+### Mode B — join an existing company
+
+```jsonc
+POST /api/auth/register
+{
+  "name": "Bob Employee",
+  "email": "bob@acme.com",
+  "password": "…",
+  "companyId": "<Acme's UUID>"  // ← joins that tenant
+}
+```
+
+The user is created as an **`employee`**; an admin promotes them afterwards via
+`PATCH /api/users/:id`. **The company's UUID is the join token** — the admin shares it
+with new hires out of band. There is no invite/email flow (SOW §11), and no
+"admin creates an employee account" endpoint — admin user-management is
+*manage existing staff only*.
+
+### Rules
+
+- The **first user of a company is always its `admin`** — the company always has someone
+  who can manage users.
+- Everyone who joins via `companyId` starts as **`employee`**.
+- **Email is globally unique** across the whole platform: one email = one account = one
+  company. Registering an already-used email returns `409`.
+- A user's `companyId` is **fixed at registration and never changes**.
+  `companyService.joinNotSupported()` explicitly rejects "switch company" —
+  `POST /companies` and `POST /companies/join` exist only for contract completeness and
+  return `400` pointing back to `/auth/register`.
+- Adding company #2, #3, … is just Mode A again with a different `companyName`; each gets
+  its own UUID and its own admin, in the same shared database.
+
+### After registration
+
+`login` / `refresh` re-issue a JWT carrying `{ userId, companyId, role }`. The
+`authenticate` middleware lifts `companyId` off the verified token into `req.auth` — the
+client never passes it as a parameter — and every repository query is scoped by it from
+there on (see **Multi-tenancy model** above). On the frontend, `app/(auth)/register`
+drives both modes and drops the user into the company-scoped app shell.
+
+---
+
 ## RBAC model
 
 Three roles: `employee`, `manager`, `admin` (a native Postgres enum). The JWT access token
